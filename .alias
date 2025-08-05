@@ -15,6 +15,7 @@ alias .....='cd ../../../..'
 alias ......='cd ../../../../..'
 alias md='mkdir'
 alias du='du -h'
+alias l='ls'
 alias ll='ls -Ahl'
 alias tree='tree -A -C -L 2'
 
@@ -49,6 +50,7 @@ alias stashes='git stash list'
 alias pick='git cherry-pick'
 alias trackedbranch='git rev-parse --abbrev-ref --symbolic-full-name @{u}'
 alias grbc="git rebase --continue"
+alias grba="git rebase --abort"
 function odd
   git difftool -y -d $1..$2
 end
@@ -72,6 +74,10 @@ alias kx=kubectx
 alias kn=kubens
 alias klog="kubectl logs"
 alias kall="kubectl get all"
+alias kpod="kubectl get pod"
+function ksecret
+  kubectl get secret $argv -o go-template='{{range $k,$v := .data}}{{printf "%s: " $k}}{{if not $v}}{{$v}}{{else}}{{$v | base64decode}}{{end}}{{"\n"}}{{end}}'
+end
 function kexec
   kubectl exec -it $argv -- /bin/bash
 end
