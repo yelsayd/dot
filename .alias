@@ -25,9 +25,11 @@ alias clone='git clone'
 alias addall='git add -A && git status -s'
 alias push='git push'
 alias pushupstream='git push --set-upstream origin $(git_branch)'
+alias pushmrdraft='git push --set-upstream origin $(git_branch) -o merge_request.create -o merge_request.draft'
 alias pull='git pull && git status -s'
 function commit
-  git commit -a -m "$argv"
+  git add -A
+  git commit -m "$argv"
 end
 alias amend='git commit --amend'
 alias amendall='git add -A && git commit --amend --no-edit -n'
@@ -38,19 +40,56 @@ function st
   git status -s && echo && \
   git log --pretty=format:"%h - <%an> %s (%cr)" --date=relative -3 && echo
 end
-alias br='git branch -vv'
+function br
+  set selected (git branch --sort=-committerdate --format='%(HEAD)|%(refname:short)|%(objectname:short)|%(contents:subject)' | \
+    awk -F'|' '{
+      indicator=$1; name=$2; hash=$3
+      n=split($4, words, " ")
+      subj=""
+      for (i=1; i<=n && i<=6; i++) subj=subj words[i] " "
+      if (n>6) subj=subj"..."
+      ind = (indicator == "*") ? "*" : " "
+      printf "%s %-28s %s  %s\n", ind, name, hash, subj
+    }' | fzf --height=40% --reverse | awk '{if ($1 == "*") print $2; else print $1}')
+  if test -n "$selected"
+    git checkout $selected
+  end
+end
 alias co='git checkout'
 alias unstage='git reset HEAD'
 alias log='git log --pretty=format:"%h - <%an> %s (%cr)" --date=relative -10 $argv'
 alias logsince='git rev-list head --not $argv'
-alias mylog='git log --pretty=format:"%h - <%an> %s (%cr)" --date=relative -10 --author=yasser.elsayed'
+alias mylog='git log --pretty=format:"%h - <%an> %s (%cr)" --date=relative -10 --author=$(git config user.name)'
 alias stash='git stash save'
 alias unstash='git stash pop'
 alias stashes='git stash list'
 alias pick='git cherry-pick'
+alias resethead='git reset head~'
 alias trackedbranch='git rev-parse --abbrev-ref --symbolic-full-name @{u}'
 alias grbc="git rebase --continue"
 alias grba="git rebase --abort"
+function searchcommits
+  git log -S "$argv" --all --pretty=format:"%h - <%an> %s (%cr)" --date=relative -50
+end
+function newbranch
+  git branch yasser/$argv origin/main && git checkout yasser/$argv
+end
+function renamebr
+  git branch -m yasser/$argv
+end
+function deletemerged
+  # Deletes all local branches fully merged into origin/main (including squash-merged)
+  # Skips the currently checked-out branch
+  set current (git branch --show-current)
+  for b in (git branch --format='%(refname:short)')
+    if test "$b" != "$current"
+      if test (git cherry origin/main $b 2>/dev/null | grep -c '^+') -eq 0
+        git branch -D $b
+      end
+    end
+  end
+end
+
 function odd
   git difftool -y -d $1..$2
 end
@@ -75,10 +114,22 @@ alias kn=kubens
 alias klog="kubectl logs"
 alias kall="kubectl get all"
 alias kpod="kubectl get pod"
+function kdebug
+  kubectl debug node/$argv -it --image=busybox
+end
+function knodepods
+  kubectl get pods --all-namespaces --field-selector spec.nodeName=$argv
+end
 function ksecret
   kubectl get secret $argv -o go-template='{{range $k,$v := .data}}{{printf "%s: " $k}}{{if not $v}}{{$v}}{{else}}{{$v | base64decode}}{{end}}{{"\n"}}{{end}}'
 end
 function kexec
   kubectl exec -it $argv -- /bin/bash
+end
+
+function scratch
+    set dir ~/dev/scratch/(date +%Y-%m-%d)
+    mkdir -p $dir
+    cd $dir
 end
 
